@@ -1,0 +1,35 @@
+#!/bin/bash
+warn_day=30
+date_now=$(date +%F)
+spr="+---------------------------+-------------+-----------+------------------------------+-------------------------------------------------+"
+printf "+--------------------------------------------------------------------------------------------------------------------------------------+\n"
+printf "| %-132s |\n" "SSL Expiry Checker"
+printf "| %-132s |\n" "Threshold : $warn_day days"
+printf "$spr\n"
+printf "| %-25s | %-11s | %-9s | %-28s | %-47s |\n" "Host" "Date Expiry" "Days Left" "Issuer" "Status"
+printf "$spr\n"
+file=$(cat $1 | grep -Ev "#")
+for hosts in $file
+do 
+	host=${hosts}
+	get_date=$(echo | openssl s_client -servername ${host} -connect ${host}:443 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d'=' -f2 | awk '{if ($2 < 10) print "0"$2,$1,$4; else print $2,$1,$4}')
+	if [[ $get_date != "" ]]
+	then
+		date_exp=${get_date}
+		count_day=$(echo $((($(date -d "$date_exp" +%s) - $(date -d $date_now +%s)) / 86400)))
+		issuer=$(echo | openssl s_client -servername ${host} -connect ${host}:443 2>/dev/null | openssl x509 -noout -issuer 2>/dev/null | awk -F'O = ' '{print $2}' | cut -d'=' -f1 | sed -e 's/[.,"]//g' -e 's/CN//' -e 's/OU//')
+		if [[ $count_day -ge $warn_day ]]
+		then
+			status=$(echo $(tput setaf 2)OK$(tput sgr0))
+		else
+			status=$(echo $(tput setaf 3)Please update$(tput sgr0))
+		fi
+	else
+		date_exp="00 xxx 0000"
+		count_day="0"
+		status=$(echo $(tput setaf 1)Make sure, it available and listen to port 443$(tput sgr0))
+		issuer="-"
+	fi
+	printf "| %-25s | %11s | %9s | %-28s | %-58s |\n" "${host}" "${date_exp}" "${count_day}" "${issuer}" "${status}"
+done
+printf "$spr\n"
