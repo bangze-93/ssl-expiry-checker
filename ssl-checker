@@ -21,12 +21,15 @@ do
 		if [[ ${count_day} -ge ${warn_day} ]]
 		then
 			status=$(echo $(tput setaf 2)OK$(tput sgr0))
+		elif [[ ${count_day} -le 0 ]]
+		then
+			status=$(echo $(tput setaf 1)Expired$(tput sgr0))
 		else
 			status=$(echo $(tput setaf 3)Please update$(tput sgr0))
 		fi
 	else
-		date_exp="00 xxx 0000"
-		count_day="0"
+		date_exp="-"
+		count_day="-"
 		status=$(echo $(tput setaf 1)Not available$(tput sgr0))
 		issuer="-"
 	fi
