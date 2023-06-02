@@ -1,12 +1,12 @@
 #!/bin/bash
 warn_day=30
 date_now=$(date +%F)
-spr="+--------------------------------+------+-------------+-----------+------------------------------+----------------+"
-printf "+-----------------------------------------------------------------------------------------------------------------+\n"
-printf "| %-111s |\n" "SSL Expiry Checker"
-printf "| %-111s |\n" "Threshold : ${warn_day} days"
+spr="+--------------------------------+------+-------------+-----------+------------------------------+----------+----------------+"
+printf "+----------------------------------------------------------------------------------------------------------------------------+\n"
+printf "| %-122s |\n" "SSL Expiry Checker"
+printf "| %-122s |\n" "Threshold : ${warn_day} days"
 printf "${spr}\n"
-printf "| %-30s | %-4s | %-11s | %-9s | %-28s | %-14s |\n" "Host" "Port" "Date Expiry" "Days Left" "Issuer" "Status"
+printf "| %-30s | %-4s | %-11s | %-9s | %-28s | %-8s | %-14s |\n" "Host" "Port" "Date Expiry" "Days Left" "Issuer" "Wildcard" "Status"
 printf "${spr}\n"
 cat $1 | grep -Ev "#" | while read line
 do
@@ -17,6 +17,7 @@ do
 	then
 		count_day=$(echo $((($(date -d "${date_exp}" +%s) - $(date -d ${date_now} +%s)) / 86400)))
 		issuer=$(echo | openssl s_client -servername ${host} -connect ${host}:${port} 2>/dev/null | openssl x509 -noout -issuer 2>/dev/null | awk -F'O = ' '{print $2}' | cut -d'=' -f1 | sed -e 's/[.,"]//g' -e 's/CN//' -e 's/OU//')
+		chk_wildcard=$(echo | openssl s_client -servername ${host} -connect ${host}:${port} 2>/dev/null | openssl x509 -noout -text | grep DNS | awk '{print $1}' | cut -d":" -f2 | cut -d '.' -f1)
 		if [[ ${count_day} -ge ${warn_day} ]]
 		then
 			status=$(echo $(tput setaf 2)OK$(tput sgr0))
@@ -26,12 +27,19 @@ do
 		else
 			status=$(echo $(tput setaf 3)Please update$(tput sgr0))
 		fi
+		if [[ ${chk_wildcard} == "*" ]]
+		then
+			wildcard="Yes"
+		else
+			wildcard="No"
+		fi
 	else
 		date_exp="-"
 		count_day="-"
 		status=$(echo $(tput setaf 1)Not available$(tput sgr0))
 		issuer="-"
+		wildcard="-"
 	fi
-	printf "| %-30s | %4s | %11s | %9s | %-28s | %-25s |\n" "${host}" "${port}" "${date_exp}" "${count_day}" "${issuer}" "${status}"
+	printf "| %-30s | %4s | %11s | %9s | %-28s | %-8s | %-25s |\n" "${host}" "${port}" "${date_exp}" "${count_day}" "${issuer}" "${wildcard}" "${status}"
 done
 printf "$spr\n"
